@@ -1,0 +1,139 @@
+[
+  {
+    "step": 0,
+    "node": "researcher",
+    "timestamp": "2026-08-27T10:00:00Z",
+    "state": {
+      "messages": [
+        {
+          "type": "system",
+          "content": "You are part of a two-agent research team. Researcher gathers facts; Writer drafts the final answer."
+        },
+        {
+          "type": "human",
+          "content": "What was the US GDP growth rate in the most recent quarter?"
+        }
+      ]
+    }
+  },
+  {
+    "step": 1,
+    "node": "researcher",
+    "timestamp": "2026-08-27T10:00:02Z",
+    "state": {
+      "messages": [
+        {
+          "type": "system",
+          "content": "You are part of a two-agent research team. Researcher gathers facts; Writer drafts the final answer."
+        },
+        {
+          "type": "human",
+          "content": "What was the US GDP growth rate in the most recent quarter?"
+        },
+        {
+          "type": "ai",
+          "name": "researcher",
+          "content": "I'll look that up.",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "name": "web_search",
+              "args": { "query": "US GDP growth rate latest quarter 2026" }
+            }
+          ]
+        },
+        {
+          "type": "tool",
+          "tool_call_id": "call_1",
+          "name": "web_search",
+          "content": "Bureau of Economic Analysis: US real GDP grew at an annualized rate of 2.1% in Q2 2026."
+        }
+      ]
+    }
+  },
+  {
+    "step": 2,
+    "node": "researcher",
+    "timestamp": "2026-08-27T10:00:05Z",
+    "state": {
+      "messages": [
+        {
+          "type": "system",
+          "content": "You are part of a two-agent research team. Researcher gathers facts; Writer drafts the final answer."
+        },
+        {
+          "type": "human",
+          "content": "What was the US GDP growth rate in the most recent quarter?"
+        },
+        {
+          "type": "ai",
+          "name": "researcher",
+          "content": "I'll look that up.",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "name": "web_search",
+              "args": { "query": "US GDP growth rate latest quarter 2026" }
+            }
+          ]
+        },
+        {
+          "type": "tool",
+          "tool_call_id": "call_1",
+          "name": "web_search",
+          "content": "Bureau of Economic Analysis: US real GDP grew at an annualized rate of 2.1% in Q2 2026."
+        },
+        {
+          "type": "ai",
+          "name": "researcher",
+          "content": "Found it: US real GDP grew at an annualized rate of 2.1% in Q2 2026, according to the Bureau of Economic Analysis. Handing off to writer."
+        }
+      ]
+    }
+  },
+  {
+    "step": 3,
+    "node": "writer",
+    "timestamp": "2026-08-27T10:00:07Z",
+    "state": {
+      "messages": [
+        {
+          "type": "system",
+          "content": "You are part of a two-agent research team. Researcher gathers facts; Writer drafts the final answer."
+        },
+        {
+          "type": "human",
+          "content": "What was the US GDP growth rate in the most recent quarter?"
+        },
+        {
+          "type": "ai",
+          "name": "researcher",
+          "content": "I'll look that up.",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "name": "web_search",
+              "args": { "query": "US GDP growth rate latest quarter 2026" }
+            }
+          ]
+        },
+        {
+          "type": "tool",
+          "tool_call_id": "call_1",
+          "name": "web_search",
+          "content": "Bureau of Economic Analysis: US real GDP grew at an annualized rate of 2.1% in Q2 2026."
+        },
+        {
+          "type": "ai",
+          "name": "researcher",
+          "content": "Found it: US real GDP grew at an annualized rate of 2.1% in Q2 2026, according to the Bureau of Economic Analysis. Handing off to writer."
+        },
+        {
+          "type": "ai",
+          "name": "writer",
+          "content": "The US economy grew at an annualized rate of 2.1% in the most recent quarter (Q2 2026), per the Bureau of Economic Analysis."
+        }
+      ]
+    }
+  }
+]
