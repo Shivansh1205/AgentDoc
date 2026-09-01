@@ -233,3 +233,121 @@ def test_diagnose_command_json_export_matches_terminal_content(
     data = json.loads(out_path.read_text(encoding="utf-8"))
     assert data["flagged_failures"][0]["justification"] == "Repeated the lookup unnecessarily."
     assert "Repeated the lookup unnecessarily." in result.stdout
+
+
+def test_diagnose_command_html_writes_file_and_still_prints_terminal_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fake_result = ClassificationResult(
+        flagged_failures=[
+            FlaggedFailure(
+                failure_mode=FailureMode.REASONING_ACTION_MISMATCH,
+                category=FailureCategory.INTER_AGENT_MISALIGNMENT,
+                turn_indices=[2],
+                justification="Contradicted its own tool result.",
+                confidence=0.9,
+            )
+        ],
+        model="fake-model-1",
+    )
+    monkeypatch.setattr(
+        cli_module, "MastClassifier", lambda backend=None: _FakeClassifier(fake_result)
+    )
+    out_path = tmp_path / "report.html"
+
+    result = runner.invoke(
+        app, ["diagnose", str(EXAMPLE_TRACE), "--html", str(out_path)]
+    )
+
+    assert result.exit_code == 0
+    assert out_path.exists()
+    html = out_path.read_text(encoding="utf-8")
+    assert "<!doctype html>" in html.lower()
+    assert "FM-2.6" in html
+    assert "researcher" in html
+    # Terminal report should still print by default alongside --html.
+    assert "MAST Diagnosis Summary" in result.stdout
+    assert "Wrote HTML report to" in result.stdout
+    assert out_path.name in result.stdout
+
+
+def test_diagnose_command_json_only_does_not_suppress_html(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # --json-only suppresses the terminal report only; --html is an
+    # independent output artifact and must still be written and confirmed.
+    fake_result = ClassificationResult(flagged_failures=[], model="fake-model-1")
+    monkeypatch.setattr(
+        cli_module, "MastClassifier", lambda backend=None: _FakeClassifier(fake_result)
+    )
+    json_path = tmp_path / "report.json"
+    html_path = tmp_path / "report.html"
+
+    result = runner.invoke(
+        app,
+        [
+            "diagnose",
+            str(EXAMPLE_TRACE),
+            "--json",
+            str(json_path),
+            "--html",
+            str(html_path),
+            "--json-only",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json_path.exists()
+    assert html_path.exists()
+    # --json-only suppresses the terminal report and the "wrote JSON/HTML"
+    # confirmation lines (those are considered part of the terminal report),
+    # but must not prevent the files themselves from being written.
+    assert "MAST Diagnosis Summary" not in result.stdout
+    assert result.stdout == ""
+
+
+def test_diagnose_command_html_and_json_together(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fake_result = ClassificationResult(flagged_failures=[], model="fake-model-1")
+    monkeypatch.setattr(
+        cli_module, "MastClassifier", lambda backend=None: _FakeClassifier(fake_result)
+    )
+    json_path = tmp_path / "report.json"
+    html_path = tmp_path / "report.html"
+
+    result = runner.invoke(
+        app,
+        [
+            "diagnose",
+            str(EXAMPLE_TRACE),
+            "--json",
+            str(json_path),
+            "--html",
+            str(html_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json_path.exists()
+    assert html_path.exists()
+    assert "Wrote JSON report to" in result.stdout
+    assert "Wrote HTML report to" in result.stdout
+    assert "MAST Diagnosis Summary" in result.stdout
+
+
+def test_diagnose_command_html_write_failure_reports_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_result = ClassificationResult(flagged_failures=[], model="fake-model-1")
+    monkeypatch.setattr(
+        cli_module, "MastClassifier", lambda backend=None: _FakeClassifier(fake_result)
+    )
+
+    result = runner.invoke(
+        app,
+        ["diagnose", str(EXAMPLE_TRACE), "--html", "/nonexistent_dir_xyz/report.html"],
+    )
+
+    assert result.exit_code == 1
+    assert "Failed to write HTML report" in result.stdout

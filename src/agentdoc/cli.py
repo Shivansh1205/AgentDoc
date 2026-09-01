@@ -20,7 +20,7 @@ from agentdoc.classifier import (
 from agentdoc.parsers import PARSERS
 from agentdoc.parsers.base import TraceParser
 from agentdoc.parsers.schema import NormalizedTrace, Role, Turn
-from agentdoc.report import generate_report, render_report, write_report_json
+from agentdoc.report import generate_report, render_report, write_report_html, write_report_json
 
 # Load variables from a .env file in the current (or an ancestor) directory,
 # e.g. GROQ_API_KEY / ANTHROPIC_API_KEY, without overriding any already set
@@ -213,7 +213,19 @@ def diagnose(
     json_only: bool = typer.Option(
         False,
         "--json-only",
-        help="Suppress the terminal report; requires --json.",
+        help=(
+            "Suppress the terminal report; requires --json. Does not affect "
+            "--html - they're independent output artifacts, not alternative "
+            "views of the same one."
+        ),
+    ),
+    html_path: Path | None = typer.Option(
+        None,
+        "--html",
+        help=(
+            "Also write a self-contained HTML graph visualization to this "
+            "path (open it directly in a browser - no server needed)."
+        ),
     ),
 ) -> None:
     """Parse a trace, classify it against MAST, and report the diagnosis.
@@ -222,6 +234,9 @@ def diagnose(
     free - get one at https://console.groq.com/keys) or ANTHROPIC_API_KEY
     (--backend anthropic). Set it as an environment variable or in a .env
     file in the current directory.
+
+    --json-only only suppresses the terminal report (it requires --json).
+    --html is independent of both and can be combined with either.
 
     Examples:
 
@@ -232,6 +247,10 @@ def diagnose(
         agentdoc diagnose trace.json --json report.json
 
         agentdoc diagnose trace.json --json report.json --json-only
+
+        agentdoc diagnose trace.json --html report.html
+
+        agentdoc diagnose trace.json --json report.json --html report.html --json-only
     """
     if json_only and json_path is None:
         console.print("[bold red]--json-only requires --json <path>.[/]")
@@ -276,6 +295,15 @@ def diagnose(
             raise typer.Exit(code=1) from exc
         if not json_only:
             console.print(f"[dim]Wrote JSON report to {json_path}[/]\n")
+
+    if html_path is not None:
+        try:
+            write_report_html(summary, html_path, trace)
+        except OSError as exc:
+            console.print(f"[bold red]Failed to write HTML report:[/] {exc}")
+            raise typer.Exit(code=1) from exc
+        if not json_only:
+            console.print(f"[dim]Wrote HTML report to {html_path}[/]\n")
 
     if not json_only:
         render_report(console, summary, trace)
