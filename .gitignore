@@ -30,3 +30,11 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Locally installed agent skills (personal tooling, not project-owned)
+.agents/
+.claude/
+skills-lock.json
+
+# Frontend
+node_modules/
