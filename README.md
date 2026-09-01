@@ -177,10 +177,84 @@ agentdoc diagnose examples/langgraph_trace_example.json --json report.json
 
 # JSON only, no terminal report (e.g. for scripting/CI)
 agentdoc diagnose examples/langgraph_trace_example.json --json report.json --json-only
+
+# Self-contained HTML graph visualization - open it directly in a browser
+agentdoc diagnose examples/langgraph_trace_example.json --html report.html
 ```
+
+`--html` renders the trace as a node graph (one node per agent, edges for
+handoffs, click any node/edge for its failure detail) alongside the same
+summary panel shown in the terminal. It's a single file with everything
+inlined - no server or build step needed, and it can be combined with
+`--json`/`--json-only` freely since it's an independent output artifact.
 
 Run `agentdoc --help` or `agentdoc diagnose --help` for the full flag
 reference.
+
+## Web console
+
+[`frontend/`](frontend/) is a browser UI for the same reports: drop in the
+JSON from `--json` and read the diagnosis as an interaction graph, a
+swimlane timeline of the trace, and a filterable list of flagged failures,
+all cross-linked — selecting an agent filters the failures, highlights its
+turns, and dims everything else.
+
+```bash
+cd frontend
+npm install
+npm run build      # emits a single self-contained dist/index.html
+```
+
+It runs entirely client-side: the uploaded file is read with the browser's
+File API and parsed in the page, so no trace content leaves the machine and
+no server is involved. `npm run dev` serves it with hot reload while
+working on it.
+
+## JSON report shape
+
+`--json` writes the full structured diagnosis: the counts and narrative, the
+flagged failures with their justifications and confidences, and the trace's
+turns.
+
+```jsonc
+{
+  "schema_version": 2,
+  "model": "openai/gpt-oss-120b",
+  "source_framework": "langgraph",
+  "trace_turn_count": 7,
+  "total_failures": 5,
+  "narrative": "This run shows 5 failures. ...",
+  "category_counts": [{ "category": "system_design_issues", "count": 2 }],
+  "ranked_failure_modes": [{ "failure_mode": "FM-1.2", "count": 1 }],
+  "flagged_failures": [
+    {
+      "failure_mode": "FM-2.5",
+      "category": "inter_agent_misalignment",
+      "turn_indices": [5],
+      "justification": "The writer gave a revenue figure that contradicts ...",
+      "confidence": 0.95
+    }
+  ],
+  "turns": [
+    {
+      "step": 5,
+      "role": "agent",
+      "agent": "writer",
+      "content": "Acme Corp's most recent quarterly revenue was $380 million ...",
+      "tool_calls": [],
+      "timestamp": null,
+      "parent_step": null,
+      "handoff_to": null,
+      "metadata": {}
+    }
+  ]
+}
+```
+
+Each failure's `turn_indices` refer to `step` values in `turns`, so a
+consumer can resolve a flagged failure to the turn that caused it — which
+agent acted, what it said, and what it called. `schema_version` is 2;
+version 1 reports had no `turns` array.
 
 ## Installing from source / development
 
@@ -203,7 +277,8 @@ work without `uv` present.
 src/agentdoc/
   parsers/     # Framework-specific trace parsers -> normalized trace format
   classifier/  # MAST taxonomy + LLM-as-a-judge engine (pluggable Groq/Anthropic backends)
-  report/      # ReportSummary generation, terminal rendering, JSON export
+  report/      # ReportSummary generation, terminal rendering, JSON/HTML export
 tests/         # Test suite (mocked LLM calls only - no real API usage in tests)
 examples/      # Sample trace files, including a deliberately flawed regression fixture
+frontend/      # React web console for reading --json reports in a browser
 ```
