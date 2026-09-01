@@ -43,6 +43,7 @@ def generate_report(
         model=result.model,
         trace_turn_count=len(trace),
         source_framework=trace.source_framework,
+        turns=list(trace.turns),
     )
 
 

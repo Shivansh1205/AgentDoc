@@ -9,7 +9,7 @@ import pytest
 
 from agentdoc.classifier.results import ClassificationResult, FlaggedFailure
 from agentdoc.classifier.taxonomy import FailureCategory, FailureMode
-from agentdoc.parsers.schema import NormalizedTrace, Role, Turn
+from agentdoc.parsers.schema import NormalizedTrace, Role, ToolCall, Turn
 from agentdoc.report.generator import generate_report
 from agentdoc.report.json_export import (
     JSON_SCHEMA_VERSION,
@@ -69,6 +69,7 @@ def test_report_to_dict_has_expected_top_level_keys(
         "category_counts",
         "ranked_failure_modes",
         "flagged_failures",
+        "turns",
     }
     assert set(data.keys()) == expected_keys
     assert data["schema_version"] == JSON_SCHEMA_VERSION
@@ -197,3 +198,101 @@ def test_empty_result_json_export_has_empty_failures_list(
     assert data["flagged_failures"] == []
     assert data["ranked_failure_modes"] == []
     assert data["total_failures"] == 0
+
+
+def test_turns_are_exported_with_full_detail(
+    sample_trace: NormalizedTrace, sample_result: ClassificationResult
+) -> None:
+    summary = generate_report(sample_trace, sample_result)
+    data = report_to_dict(summary)
+
+    assert len(data["turns"]) == 2
+    human, agent = data["turns"]
+    assert human == {
+        "step": 0,
+        "role": "human",
+        "agent": None,
+        "content": "hello",
+        "tool_calls": [],
+        "timestamp": None,
+        "parent_step": None,
+        "handoff_to": None,
+        "metadata": {},
+    }
+    assert agent["role"] == "agent"
+    assert agent["agent"] == "researcher"
+
+
+def test_exported_turn_count_matches_trace_turn_count(
+    sample_trace: NormalizedTrace, sample_result: ClassificationResult
+) -> None:
+    """`turns` and `trace_turn_count` must not be able to disagree."""
+    data = report_to_dict(generate_report(sample_trace, sample_result))
+
+    assert len(data["turns"]) == data["trace_turn_count"]
+
+
+def test_flagged_failure_turn_indices_resolve_against_exported_turns(
+    sample_trace: NormalizedTrace, sample_result: ClassificationResult
+) -> None:
+    """The point of exporting turns: `turn_indices` must not dangle.
+
+    A consumer drawing a timeline or agent graph looks up each flagged
+    failure's turn indices in `turns`; if those don't resolve, the export
+    tells you *that* something failed but not who or what.
+    """
+    data = report_to_dict(generate_report(sample_trace, sample_result))
+    steps = {turn["step"] for turn in data["turns"]}
+
+    for failure in data["flagged_failures"]:
+        assert failure["turn_indices"], "expected at least one referenced turn"
+        for index in failure["turn_indices"]:
+            assert index in steps, f"turn_indices {index} does not resolve"
+
+
+def test_tool_calls_and_handoffs_survive_export() -> None:
+    """Tool calls and handoffs are what the graph draws; they must round-trip."""
+    trace = NormalizedTrace(
+        source_framework="langgraph",
+        turns=[
+            Turn(
+                step=0,
+                role=Role.AGENT,
+                agent="flight_assistant",
+                content="",
+                tool_calls=[
+                    ToolCall(
+                        name="search_flights",
+                        call_id="fc_1",
+                        args={"to": "JFK"},
+                        result="[]",
+                    )
+                ],
+                handoff_to="hotel_assistant",
+            )
+        ],
+    )
+    result = ClassificationResult(flagged_failures=[], model="test-model")
+
+    data = report_to_dict(generate_report(trace, result))
+    turn = data["turns"][0]
+
+    assert turn["handoff_to"] == "hotel_assistant"
+    assert turn["tool_calls"] == [
+        {
+            "name": "search_flights",
+            "call_id": "fc_1",
+            "args": {"to": "JFK"},
+            "result": "[]",
+            "error": None,
+        }
+    ]
+
+
+def test_json_string_round_trips_turns(
+    sample_trace: NormalizedTrace, sample_result: ClassificationResult
+) -> None:
+    summary = generate_report(sample_trace, sample_result)
+    parsed = json.loads(report_to_json(summary))
+
+    assert [turn["step"] for turn in parsed["turns"]] == [0, 1]

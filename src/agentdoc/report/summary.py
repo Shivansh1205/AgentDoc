@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from agentdoc.classifier.results import FlaggedFailure
 from agentdoc.classifier.taxonomy import FailureCategory, FailureMode
+from agentdoc.parsers.schema import Turn
 
 
 @dataclass
@@ -52,6 +53,13 @@ class ReportSummary:
         trace_turn_count: Number of turns in the source trace, for context
             (e.g. "4 failures across a 12-turn trace").
         source_framework: The trace's source framework (e.g. "langgraph").
+        turns: The source trace's turns, carried through so exports can
+            resolve each flagged failure's `turn_indices` against the actual
+            turns they point at. Without these, a `turn_indices` value is a
+            dangling reference: a consumer knows *that* turn 5 was faulted
+            but has no way to learn which agent produced it or what it said.
+            Empty by default so existing callers that build a summary without
+            a trace keep working.
     """
 
     total_failures: int
@@ -62,3 +70,4 @@ class ReportSummary:
     model: str | None = None
     trace_turn_count: int = 0
     source_framework: str | None = None
+    turns: list[Turn] = field(default_factory=list)

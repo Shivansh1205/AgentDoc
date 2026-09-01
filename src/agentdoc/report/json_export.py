@@ -1,10 +1,14 @@
 """JSON serialization for `ReportSummary`.
 
 Produces the *full* structured data (all flagged failures with their turn
-references and justifications, plus counts and the narrative) — not just the
-narrative sentence — so this is usable programmatically (dashboards, CI
-gates, further analysis) without re-deriving anything from the terminal
-report.
+references and justifications, plus counts, the narrative, and the trace's
+turns themselves) — not just the narrative sentence — so this is usable
+programmatically (dashboards, CI gates, further analysis) without
+re-deriving anything from the terminal report.
+
+Turns are included so a failure's `turn_indices` resolves: `[5]` on its own
+tells a consumer a turn was faulted but nothing about who produced it or
+what happened, which is not enough to draw a timeline or an agent graph.
 """
 
 from __future__ import annotations
@@ -13,12 +17,18 @@ import json
 from pathlib import Path
 from typing import Any
 
+from agentdoc.parsers.schema import Turn
 from agentdoc.report.summary import ReportSummary
 
 #: Bump if the JSON export shape changes in a way that could break consumers
 #: (renamed/removed field, changed type). Additive changes (new optional
 #: field) don't require a bump.
-JSON_SCHEMA_VERSION = 1
+#:
+#: v2 added the top-level `turns` array. Strictly additive, but bumped anyway:
+#: consumers keying off the version to decide whether they can render a
+#: timeline/graph need to distinguish "no turns because the trace was empty"
+#: from "no turns because this file predates the field".
+JSON_SCHEMA_VERSION = 2
 
 
 def report_to_dict(summary: ReportSummary) -> dict[str, Any]:
@@ -48,6 +58,38 @@ def report_to_dict(summary: ReportSummary) -> dict[str, Any]:
             }
             for failure in summary.flagged_failures
         ],
+        "turns": [_turn_to_dict(turn) for turn in summary.turns],
+    }
+
+
+def _turn_to_dict(turn: Turn) -> dict[str, Any]:
+    """Convert one `Turn` into a JSON-serializable dict.
+
+    Mirrors the `Turn` dataclass field-for-field rather than trimming to what
+    any one consumer needs today: the whole point of exporting turns is that
+    `turn_indices` on a flagged failure resolves to something complete enough
+    to render (who acted, what they said, what they called, where control
+    went next).
+    """
+    return {
+        "step": turn.step,
+        "role": turn.role.value,
+        "agent": turn.agent,
+        "content": turn.content,
+        "tool_calls": [
+            {
+                "name": call.name,
+                "call_id": call.call_id,
+                "args": call.args,
+                "result": call.result,
+                "error": call.error,
+            }
+            for call in turn.tool_calls
+        ],
+        "timestamp": turn.timestamp,
+        "parent_step": turn.parent_step,
+        "handoff_to": turn.handoff_to,
+        "metadata": turn.metadata,
     }
 
 
