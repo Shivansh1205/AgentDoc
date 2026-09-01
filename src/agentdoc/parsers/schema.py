@@ -61,6 +61,16 @@ class Turn:
         parent_step: Step index this turn logically follows/responds to, when
             it differs from a simple `step - 1` (e.g. branching, handoffs).
             None when linear order is sufficient.
+        handoff_to: Name of the agent this turn explicitly routes control to
+            next, when the source framework signals a handoff structurally
+            (e.g. a `langgraph-swarm` `transfer_to_<agent>` tool call, or an
+            `active_agent` state field). None when no such signal exists —
+            callers building a graph from turn sequence should then fall
+            back to inferring handoffs from `agent` changing between
+            consecutive turns, as before this field existed. This is a
+            first-class, typed alternative to a plain tool-call name string:
+            a handoff is who-hands-off-to-whom, a property of the turn, not
+            just one tool call among possibly several on it.
         metadata: Anything framework-specific worth preserving for debugging
             or future classifier features, without polluting the core schema.
     """
@@ -72,6 +82,7 @@ class Turn:
     tool_calls: list[ToolCall] = field(default_factory=list)
     timestamp: str | None = None
     parent_step: int | None = None
+    handoff_to: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

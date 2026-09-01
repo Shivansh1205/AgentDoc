@@ -54,3 +54,54 @@ uv run agentdoc diagnose examples/langgraph_trace_flawed_example.json
 
 Expect: failures reported in all three MAST categories. Expect zero on
 `langgraph_trace_example.json` as the negative control.
+
+## `langgraph_swarm_example.json` — real external trace (langgraph-swarm-py)
+
+Unlike the two fixtures above, **this is a real, unmodified capture from an
+actual external multi-agent library**, not something we wrote by hand. It
+was produced by running the `customer_support` example from
+[`langgraph-swarm-py`](https://github.com/langchain-ai/langgraph-swarm-py)
+(swapped from OpenAI to Groq's `openai/gpt-oss-120b` — the library itself is
+model-agnostic) and capturing its actual `.stream(stream_mode="updates")`
+output verbatim, with only cosmetic re-serialization (a `__type__` field
+added for readability; harmless, the parser ignores unknown keys).
+
+The trace: a user asks to book a flight and a hotel in one request. A
+`flight_assistant` agent searches and books the flight, then **explicitly
+hands off** to a `hotel_assistant` agent via `langgraph-swarm`'s
+`transfer_to_hotel_assistant` tool call, which searches and books the hotel
+and gives the final answer. 7 turns, 2 agents, 1 real structural handoff.
+
+This fixture exists to test something the two synthetic fixtures above
+can't: **compatibility with a trace shape AgentDoc didn't invent.**
+`langgraph-swarm-py`'s raw `.stream()` output uses a different envelope
+than our original "simplified stream capture" format (`{"<node_name>":
+{...state}}` instead of `{"step", "node", "state", "timestamp"}`), and
+represents handoffs as a specific tool-call convention
+(`transfer_to_<agent_name>`) rather than anything AgentDoc's schema
+originally had a concept for. Getting this file to parse correctly is what
+drove two real fixes:
+
+1. `LangGraphParser` now detects and accepts both envelope shapes (it used
+   to silently produce zero turns on this file's shape rather than error).
+2. `Turn.handoff_to` is a first-class, nullable field populated when a
+   message's tool calls match the `transfer_to_<agent>` convention, so
+   `agentdoc.report.html.build_graph()` can draw the handoff as a
+   structurally-known edge (rendered with a distinct arrowhead/weight in
+   the `--html` graph) instead of merely inferring it from consecutive
+   turns having different agents.
+
+### Using it as a regression check
+
+```bash
+uv run agentdoc parse examples/langgraph_swarm_example.json
+```
+
+Expect: 7 turns, `flight_assistant` (steps 1-3) then `hotel_assistant`
+(steps 4-6), with `search_flights`/`book_flight`/`transfer_to_hotel_assistant`
+folded correctly into `flight_assistant`'s turns and
+`search_hotels`/`book_hotel` into `hotel_assistant`'s. If this ever parses
+to 0 turns or raises, envelope detection has regressed. See
+`tests/test_langgraph_parser.py`'s `TestLangGraphSwarmExample`-style tests
+for the exact assertions (turn count, handoff_to population, tool-call
+folding) that pin this down.

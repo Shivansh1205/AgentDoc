@@ -1,0 +1,643 @@
+[
+  {
+    "flight_assistant": {
+      "messages": [
+        {
+          "__type__": "HumanMessage",
+          "content": "Book me the first available flight from BOS to JFK tomorrow, then transfer me to the hotel assistant to book the McKittrick Hotel in New York. Just do it, no need to ask me anything else.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "human",
+          "name": null,
+          "id": "5f4918b4-3d52-42cb-baf6-fdebe368bd52"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "We need to book a flight from BOS to JFK tomorrow. Need to search flights first. Then book the first available flight (presumably the first in results). Then transfer to hotel assistant. We must not ask user anything else. So we need to call search_flights with departure BOS, arrival JFK, date tomorrow's date. Today is 2026-08-31, so tomorrow is 2026-09-01. Then we need to pick first flight_id from results. Then call book_flight. Then transfer. Let's call search_flights.",
+            "tool_calls": [
+              {
+                "id": "fc_32bfbedb-220b-4287-9f0c-f3293d49bc7c",
+                "function": {
+                  "arguments": "{\"arrival_airport\":\"JFK\",\"date\":\"2026-09-01\",\"departure_airport\":\"BOS\"}",
+                  "name": "search_flights"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 167,
+              "prompt_tokens": 276,
+              "total_tokens": 443,
+              "completion_time": 0.351633536,
+              "completion_tokens_details": {
+                "reasoning_tokens": 114
+              },
+              "prompt_time": 0.079515235,
+              "prompt_tokens_details": null,
+              "queue_time": 0.310570119,
+              "total_time": 0.431148771
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_60e4b492db",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "flight_assistant",
+          "id": "lc_run--01a056f4-bd90-7082-9f68-7f8cab50b783-0",
+          "tool_calls": [
+            {
+              "name": "search_flights",
+              "args": {
+                "arrival_airport": "JFK",
+                "date": "2026-09-01",
+                "departure_airport": "BOS"
+              },
+              "id": "fc_32bfbedb-220b-4287-9f0c-f3293d49bc7c",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 276,
+            "output_tokens": 167,
+            "total_tokens": 443,
+            "output_token_details": {
+              "reasoning": 114
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "[{\"departure_airport\": \"BOS\", \"arrival_airport\": \"JFK\", \"airline\": \"Jet Blue\", \"date\": \"2026-09-01\", \"id\": \"1\"}]",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "search_flights",
+          "id": "b9931b17-cd8b-41e1-8e9c-a6767baa6621",
+          "tool_call_id": "fc_32bfbedb-220b-4287-9f0c-f3293d49bc7c",
+          "artifact": null,
+          "status": "success"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "We have one flight available with id \"1\". Need to book it, then transfer to hotel assistant. No further user input needed. So call book_flight with flight_id \"1\". Then call transfer_to_hotel_assistant.",
+            "tool_calls": [
+              {
+                "id": "fc_184a06e6-0a22-4bf9-b99d-ade158dad589",
+                "function": {
+                  "arguments": "{\"flight_id\":\"1\"}",
+                  "name": "book_flight"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 72,
+              "prompt_tokens": 372,
+              "total_tokens": 444,
+              "completion_time": 0.149051734,
+              "completion_tokens_details": {
+                "reasoning_tokens": 48
+              },
+              "prompt_time": 0.02024693,
+              "prompt_tokens_details": null,
+              "queue_time": 0.358859965,
+              "total_time": 0.169298664
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_93703442d9",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "flight_assistant",
+          "id": "lc_run--01a056f4-c137-7d60-81c0-4e8d481cbd9d-0",
+          "tool_calls": [
+            {
+              "name": "book_flight",
+              "args": {
+                "flight_id": "1"
+              },
+              "id": "fc_184a06e6-0a22-4bf9-b99d-ade158dad589",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 372,
+            "output_tokens": 72,
+            "total_tokens": 444,
+            "output_token_details": {
+              "reasoning": 48
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "Successfully booked flight",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "book_flight",
+          "id": "3644f0fa-fd4d-4160-8913-51f41ec7ee4c",
+          "tool_call_id": "fc_184a06e6-0a22-4bf9-b99d-ade158dad589",
+          "artifact": null,
+          "status": "success"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "We have booked flight. Now need to transfer to hotel assistant. Use transfer_to_hotel_assistant function.",
+            "tool_calls": [
+              {
+                "id": "fc_c14c9b97-28ad-4907-958f-d2e1ea130214",
+                "function": {
+                  "arguments": "{}",
+                  "name": "transfer_to_hotel_assistant"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 45,
+              "prompt_tokens": 404,
+              "total_tokens": 449,
+              "completion_time": 0.095497556,
+              "completion_tokens_details": {
+                "reasoning_tokens": 23
+              },
+              "prompt_time": 0.086599278,
+              "prompt_tokens_details": null,
+              "queue_time": 0.312558955,
+              "total_time": 0.182096834
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_9d1f936695",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "flight_assistant",
+          "id": "lc_run--01a056f4-c384-74e3-82a9-5cfd56691dca-0",
+          "tool_calls": [
+            {
+              "name": "transfer_to_hotel_assistant",
+              "args": {},
+              "id": "fc_c14c9b97-28ad-4907-958f-d2e1ea130214",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 404,
+            "output_tokens": 45,
+            "total_tokens": 449,
+            "output_token_details": {
+              "reasoning": 23
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "Successfully transferred to hotel_assistant",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "transfer_to_hotel_assistant",
+          "id": "da03c65e-ed29-474a-9069-ad0b37f51c05",
+          "tool_call_id": "fc_c14c9b97-28ad-4907-958f-d2e1ea130214",
+          "artifact": null,
+          "status": "success"
+        }
+      ],
+      "active_agent": "hotel_assistant"
+    }
+  },
+  {
+    "hotel_assistant": {
+      "messages": [
+        {
+          "__type__": "HumanMessage",
+          "content": "Book me the first available flight from BOS to JFK tomorrow, then transfer me to the hotel assistant to book the McKittrick Hotel in New York. Just do it, no need to ask me anything else.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "human",
+          "name": null,
+          "id": "5f4918b4-3d52-42cb-baf6-fdebe368bd52"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "We need to book a flight from BOS to JFK tomorrow. Need to search flights first. Then book the first available flight (presumably the first in results). Then transfer to hotel assistant. We must not ask user anything else. So we need to call search_flights with departure BOS, arrival JFK, date tomorrow's date. Today is 2026-08-31, so tomorrow is 2026-09-01. Then we need to pick first flight_id from results. Then call book_flight. Then transfer. Let's call search_flights.",
+            "tool_calls": [
+              {
+                "id": "fc_32bfbedb-220b-4287-9f0c-f3293d49bc7c",
+                "function": {
+                  "arguments": "{\"arrival_airport\":\"JFK\",\"date\":\"2026-09-01\",\"departure_airport\":\"BOS\"}",
+                  "name": "search_flights"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 167,
+              "prompt_tokens": 276,
+              "total_tokens": 443,
+              "completion_time": 0.351633536,
+              "completion_tokens_details": {
+                "reasoning_tokens": 114
+              },
+              "prompt_time": 0.079515235,
+              "prompt_tokens_details": null,
+              "queue_time": 0.310570119,
+              "total_time": 0.431148771
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_60e4b492db",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "flight_assistant",
+          "id": "lc_run--01a056f4-bd90-7082-9f68-7f8cab50b783-0",
+          "tool_calls": [
+            {
+              "name": "search_flights",
+              "args": {
+                "arrival_airport": "JFK",
+                "date": "2026-09-01",
+                "departure_airport": "BOS"
+              },
+              "id": "fc_32bfbedb-220b-4287-9f0c-f3293d49bc7c",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 276,
+            "output_tokens": 167,
+            "total_tokens": 443,
+            "output_token_details": {
+              "reasoning": 114
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "[{\"departure_airport\": \"BOS\", \"arrival_airport\": \"JFK\", \"airline\": \"Jet Blue\", \"date\": \"2026-09-01\", \"id\": \"1\"}]",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "search_flights",
+          "id": "b9931b17-cd8b-41e1-8e9c-a6767baa6621",
+          "tool_call_id": "fc_32bfbedb-220b-4287-9f0c-f3293d49bc7c",
+          "artifact": null,
+          "status": "success"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "We have one flight available with id \"1\". Need to book it, then transfer to hotel assistant. No further user input needed. So call book_flight with flight_id \"1\". Then call transfer_to_hotel_assistant.",
+            "tool_calls": [
+              {
+                "id": "fc_184a06e6-0a22-4bf9-b99d-ade158dad589",
+                "function": {
+                  "arguments": "{\"flight_id\":\"1\"}",
+                  "name": "book_flight"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 72,
+              "prompt_tokens": 372,
+              "total_tokens": 444,
+              "completion_time": 0.149051734,
+              "completion_tokens_details": {
+                "reasoning_tokens": 48
+              },
+              "prompt_time": 0.02024693,
+              "prompt_tokens_details": null,
+              "queue_time": 0.358859965,
+              "total_time": 0.169298664
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_93703442d9",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "flight_assistant",
+          "id": "lc_run--01a056f4-c137-7d60-81c0-4e8d481cbd9d-0",
+          "tool_calls": [
+            {
+              "name": "book_flight",
+              "args": {
+                "flight_id": "1"
+              },
+              "id": "fc_184a06e6-0a22-4bf9-b99d-ade158dad589",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 372,
+            "output_tokens": 72,
+            "total_tokens": 444,
+            "output_token_details": {
+              "reasoning": 48
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "Successfully booked flight",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "book_flight",
+          "id": "3644f0fa-fd4d-4160-8913-51f41ec7ee4c",
+          "tool_call_id": "fc_184a06e6-0a22-4bf9-b99d-ade158dad589",
+          "artifact": null,
+          "status": "success"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "We have booked flight. Now need to transfer to hotel assistant. Use transfer_to_hotel_assistant function.",
+            "tool_calls": [
+              {
+                "id": "fc_c14c9b97-28ad-4907-958f-d2e1ea130214",
+                "function": {
+                  "arguments": "{}",
+                  "name": "transfer_to_hotel_assistant"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 45,
+              "prompt_tokens": 404,
+              "total_tokens": 449,
+              "completion_time": 0.095497556,
+              "completion_tokens_details": {
+                "reasoning_tokens": 23
+              },
+              "prompt_time": 0.086599278,
+              "prompt_tokens_details": null,
+              "queue_time": 0.312558955,
+              "total_time": 0.182096834
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_9d1f936695",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "flight_assistant",
+          "id": "lc_run--01a056f4-c384-74e3-82a9-5cfd56691dca-0",
+          "tool_calls": [
+            {
+              "name": "transfer_to_hotel_assistant",
+              "args": {},
+              "id": "fc_c14c9b97-28ad-4907-958f-d2e1ea130214",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 404,
+            "output_tokens": 45,
+            "total_tokens": 449,
+            "output_token_details": {
+              "reasoning": 23
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "Successfully transferred to hotel_assistant",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "transfer_to_hotel_assistant",
+          "id": "da03c65e-ed29-474a-9069-ad0b37f51c05",
+          "tool_call_id": "fc_c14c9b97-28ad-4907-958f-d2e1ea130214",
+          "artifact": null,
+          "status": "success"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "The user wants to book flight from BOS to JFK tomorrow, we did that. Then transfer to hotel assistant to book McKittrick Hotel in New York. We transferred to hotel assistant. But we need to now act as hotel assistant? The system says we are a hotel booking assistant. The user wants to book McKittrick Hotel. We need to search hotels in New York, then book the McKittrick Hotel. Use search_hotels with location \"New York\". Then find the McKittrick Hotel and book it. Let's do that.",
+            "tool_calls": [
+              {
+                "id": "fc_3e5f9f10-cd36-40aa-a66f-147e7d3e4f4f",
+                "function": {
+                  "arguments": "{\"location\":\"New York\"}",
+                  "name": "search_hotels"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 143,
+              "prompt_tokens": 402,
+              "total_tokens": 545,
+              "completion_time": 0.296801655,
+              "completion_tokens_details": {
+                "reasoning_tokens": 114
+              },
+              "prompt_time": 0.017451901,
+              "prompt_tokens_details": null,
+              "queue_time": 0.281037977,
+              "total_time": 0.314253556
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_854fa9be4c",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "hotel_assistant",
+          "id": "lc_run--01a056f4-c5b2-7802-af99-069b439c7769-0",
+          "tool_calls": [
+            {
+              "name": "search_hotels",
+              "args": {
+                "location": "New York"
+              },
+              "id": "fc_3e5f9f10-cd36-40aa-a66f-147e7d3e4f4f",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 402,
+            "output_tokens": 143,
+            "total_tokens": 545,
+            "output_token_details": {
+              "reasoning": 114
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "[{\"location\": \"New York\", \"name\": \"McKittrick Hotel\", \"neighborhood\": \"Chelsea\", \"id\": \"1\"}]",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "search_hotels",
+          "id": "d6b20ac7-f690-4443-b581-ce6e24cc4739",
+          "tool_call_id": "fc_3e5f9f10-cd36-40aa-a66f-147e7d3e4f4f",
+          "artifact": null,
+          "status": "success"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "",
+          "additional_kwargs": {
+            "reasoning_content": "We need to book the McKittrick Hotel. Use book_hotel with id \"1\".",
+            "tool_calls": [
+              {
+                "id": "fc_091384ab-6dcb-46df-9bd0-af4004a74b96",
+                "function": {
+                  "arguments": "{\"hotel_id\":\"1\"}",
+                  "name": "book_hotel"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 42,
+              "prompt_tokens": 463,
+              "total_tokens": 505,
+              "completion_time": 0.089046687,
+              "completion_tokens_details": {
+                "reasoning_tokens": 21
+              },
+              "prompt_time": 0.065186125,
+              "prompt_tokens_details": null,
+              "queue_time": 0.158222771,
+              "total_time": 0.154232812
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_84bf0227ec",
+            "service_tier": "on_demand",
+            "finish_reason": "tool_calls",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "hotel_assistant",
+          "id": "lc_run--01a056f4-c847-7893-aadc-e51906d33e26-0",
+          "tool_calls": [
+            {
+              "name": "book_hotel",
+              "args": {
+                "hotel_id": "1"
+              },
+              "id": "fc_091384ab-6dcb-46df-9bd0-af4004a74b96",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 463,
+            "output_tokens": 42,
+            "total_tokens": 505,
+            "output_token_details": {
+              "reasoning": 21
+            }
+          }
+        },
+        {
+          "__type__": "ToolMessage",
+          "content": "Successfully booked hotel",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "tool",
+          "name": "book_hotel",
+          "id": "4fa46ad9-a0b5-437e-8ff4-56c766490850",
+          "tool_call_id": "fc_091384ab-6dcb-46df-9bd0-af4004a74b96",
+          "artifact": null,
+          "status": "success"
+        },
+        {
+          "__type__": "AIMessage",
+          "content": "Your flight from BOS to JFK tomorrow has been booked, and the McKittrick Hotel in New York has also been confirmed. Enjoy your trip!",
+          "additional_kwargs": {},
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 34,
+              "prompt_tokens": 495,
+              "total_tokens": 529,
+              "completion_time": 0.07399211,
+              "completion_tokens_details": null,
+              "prompt_time": 0.127589158,
+              "prompt_tokens_details": null,
+              "queue_time": 0.31649277,
+              "total_time": 0.201581268
+            },
+            "model_name": "openai/gpt-oss-120b",
+            "system_fingerprint": "fp_4b2f03d631",
+            "service_tier": "on_demand",
+            "finish_reason": "stop",
+            "logprobs": null,
+            "model_provider": "groq"
+          },
+          "type": "ai",
+          "name": "hotel_assistant",
+          "id": "lc_run--01a056f4-c9c0-7683-87b3-bd73c6e0dbd5-0",
+          "tool_calls": [],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 495,
+            "output_tokens": 34,
+            "total_tokens": 529
+          }
+        }
+      ]
+    }
+  }
+]

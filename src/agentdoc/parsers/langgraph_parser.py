@@ -1,11 +1,11 @@
 """Parser for LangGraph execution traces.
 
-Target format
--------------
-This parser targets a "simplified stream capture": a JSON array of the
-per-superstep chunks LangGraph emits from `graph.stream(...)`, e.g. via a
-custom callback/logger that dumps each chunk as it's produced. Each element
-looks like::
+Target formats
+--------------
+This parser accepts two JSON shapes, auto-detected per chunk:
+
+1. A "simplified stream capture" flattened envelope, e.g. via a custom
+   callback/logger that dumps each superstep as it's produced::
 
     {
         "step": 0,
@@ -23,28 +23,62 @@ looks like::
         "timestamp": "2026-08-27T10:00:01Z"
     }
 
-This mirrors two real LangGraph/LangChain conventions:
+2. LangGraph's own raw `.stream(stream_mode="updates")` output: a dict with
+   exactly one key, the node name, whose value is that node's state update::
 
-- LangGraph's `.stream()` yields one dict per superstep, keyed by node name,
-  with the node's contribution to shared state (we accept a flattened
-  `{"step", "node", "state", "timestamp"}` shape rather than the raw
-  `{node_name: state}` mapping, since that's what most custom loggers
-  actually persist).
-- `state["messages"]` follows LangChain's `BaseMessage` JSON shape: `type` is
-  one of "human" / "ai" / "system" / "tool"; an "ai" message may carry
-  `tool_calls` (list of `{id, name, args}`); a "tool" message carries the
-  `tool_call_id` and `name` of the call it answers.
+    {
+        "researcher": {
+            "messages": [ ... same message shape as above ... ]
+        }
+    }
+
+   This is what `graph.stream(...)` actually yields with no logging
+   middleware in between — confirmed against a real captured trace from
+   `langgraph-swarm-py` (see examples/langgraph_swarm_example.json). Earlier
+   versions of this parser only accepted shape 1 and silently produced zero
+   turns on shape 2, since `chunk.get("node")`/`chunk.get("state")` are both
+   `None` on it and `{}.get("messages")` quietly returns `[]`. A chunk
+   matching neither shape now raises `LangGraphParseError` instead of being
+   treated as empty.
+
+Either way, `state["messages"]` follows LangChain's `BaseMessage` JSON shape:
+`type` is one of "human" / "ai" / "system" / "tool"; an "ai" message may
+carry `tool_calls` (list of `{id, name, args}`); a "tool" message carries the
+`tool_call_id` and `name` of the call it answers.
 
 Because LangGraph's shared state is cumulative (each superstep's
 `state.messages` is the full running list, not just new messages), this
 parser diffs against previously-seen messages so each message becomes exactly
 one `Turn`, and folds a tool's result message back into the `ToolCall` that
 requested it rather than emitting a redundant standalone turn.
+
+Handoff detection
+------------------
+`langgraph-swarm` (and similar swarm-style multi-agent libraries) represent
+an agent handing off control as a specific tool call - conventionally named
+`transfer_to_<agent_name>` by `create_handoff_tool` - whose result updates an
+`active_agent` state key rather than being a normal domain action. This
+parser populates `Turn.handoff_to` when a message's own tool calls match
+that `transfer_to_<agent_name>` naming pattern.
+
+The chunk-level `active_agent` state key (also part of the swarm library's
+state schema) is deliberately *not* consulted for this: it describes state
+*after the whole chunk*, and a single chunk can carry several AI messages
+(e.g. search a flight, book it, then transfer) - every message in that
+chunk would look equally "responsible" for the resulting active_agent
+value, so only a per-message signal (the tool-call name) can correctly
+attribute the handoff to the one message that actually performed it.
+
+`handoff_to` is left `None` when no matching tool call is found - callers
+(e.g. `agentdoc.report.html.build_graph`) fall back to inferring handoffs
+from `Turn.agent` changing between consecutive turns, exactly as before
+this concept existed.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -58,13 +92,20 @@ _ROLE_BY_MESSAGE_TYPE = {
     "tool": Role.TOOL,
 }
 
+# Matches the tool name `create_handoff_tool` generates by default in
+# langgraph-swarm: `transfer_to_<agent_name>` (agent name normalized to
+# snake_case). See the "Handoff detection" section of the module docstring
+# for why this per-message tool-call name is the signal used, rather than
+# the chunk-level `active_agent` state key.
+_HANDOFF_TOOL_NAME_RE = re.compile(r"^transfer_to_(?P<agent>.+)$")
+
 
 class LangGraphParseError(ValueError):
-    """Raised when a file does not match the expected LangGraph trace shape."""
+    """Raised when a file does not match a known LangGraph trace shape."""
 
 
 class LangGraphParser(TraceParser):
-    """Parses a LangGraph stream-capture JSON export into a `NormalizedTrace`."""
+    """Parses a LangGraph trace export (flattened or raw stream) into a `NormalizedTrace`."""
 
     framework = "langgraph"
 
@@ -89,7 +130,7 @@ class LangGraphParser(TraceParser):
         # Tool-call results resolve against calls made earlier in the trace,
         # tracked by call_id across the whole run (not just within one step).
         pending_tool_calls: dict[str, ToolCall] = {}
-        seen_message_keys: set[tuple[str | None, str | None, str | None]] = set()
+        seen_message_keys: set[tuple[str | None, str | None, str | None, tuple[str, ...]]] = set()
         turn_step = 0
 
         for chunk_index, chunk in enumerate(data):
@@ -98,9 +139,7 @@ class LangGraphParser(TraceParser):
                     f"Chunk {chunk_index} is not a JSON object: {chunk!r}"
                 )
 
-            node = chunk.get("node")
-            timestamp = chunk.get("timestamp")
-            state = chunk.get("state") or {}
+            node, state, timestamp = _unwrap_chunk(chunk, chunk_index)
             messages = state.get("messages") or []
 
             if not isinstance(messages, list):
@@ -132,19 +171,81 @@ class LangGraphParser(TraceParser):
         return trace
 
 
+def _unwrap_chunk(
+    chunk: dict[str, Any], chunk_index: int
+) -> tuple[str | None, dict[str, Any], str | None]:
+    """Detect and unwrap one of the two accepted chunk envelopes.
+
+    Returns (node_name, state_dict, timestamp). Raises `LangGraphParseError`
+    if `chunk` matches neither known shape, rather than treating it as an
+    empty chunk with no messages.
+    """
+    has_flattened_keys = "node" in chunk and "state" in chunk
+    if has_flattened_keys:
+        state = chunk.get("state")
+        if not isinstance(state, dict):
+            raise LangGraphParseError(
+                f"Chunk {chunk_index} ('state') must be an object, "
+                f"got {type(state).__name__}."
+            )
+        return chunk.get("node"), state, chunk.get("timestamp")
+
+    # Raw LangGraph `.stream(stream_mode="updates")` shape: exactly one key,
+    # the node name, whose value is that node's state update dict.
+    if len(chunk) == 1:
+        (node_name, state), = chunk.items()
+        if isinstance(state, dict) and "messages" in state:
+            return node_name, state, None
+
+    raise LangGraphParseError(
+        f"Chunk {chunk_index} matches neither known LangGraph trace shape: "
+        "expected either {'node', 'state', ...} (flattened stream capture) "
+        "or {'<node_name>': {'messages': [...], ...}} (raw .stream() "
+        f"output). Got keys: {sorted(chunk.keys())!r}"
+    )
+
+
 def _message_identity(
     message: dict[str, Any],
-) -> tuple[str | None, str | None, str | None]:
+) -> tuple[str | None, str | None, str | None, tuple[str, ...]]:
     """A best-effort identity for de-duplicating cumulative message state.
 
     LangChain messages don't guarantee a stable id, so we fall back to
-    (type, tool_call_id, content) which is stable enough for a single trace.
+    (type, tool_call_id, content, tool_call_ids) - stable enough for a
+    single trace. The tool-call-ids component matters for agent turns that
+    make a tool call with no accompanying text: an agent that calls several
+    tools back-to-back (e.g. search, then book, then hand off) typically
+    produces multiple AI messages that all have `content=""` - real
+    behavior seen from Groq/langgraph-swarm, not a hypothetical - so
+    `(type, tool_call_id, content)` alone would collide across all of them
+    and only the first would survive dedup. Tool call ids are unique per
+    call, so including them (sorted, for order-independence) distinguishes
+    these messages correctly.
     """
+    tool_call_ids = tuple(
+        sorted(
+            call.get("id", "")
+            for call in (message.get("tool_calls") or [])
+            if call.get("id")
+        )
+    )
     return (
         message.get("type"),
         message.get("tool_call_id"),
         message.get("content") if isinstance(message.get("content"), str) else None,
+        tool_call_ids,
     )
+
+
+def _handoff_target_from_tool_calls(raw_tool_calls: list[dict[str, Any]]) -> str | None:
+    """The agent name from the first `transfer_to_<agent_name>`-style tool
+    call on this message, or None if none of its tool calls look like a
+    handoff."""
+    for raw_call in raw_tool_calls:
+        match = _HANDOFF_TOOL_NAME_RE.match(raw_call.get("name") or "")
+        if match:
+            return match.group("agent")
+    return None
 
 
 def _message_to_turn(
@@ -185,7 +286,8 @@ def _message_to_turn(
         )
 
     tool_calls = []
-    for raw_call in message.get("tool_calls") or []:
+    raw_tool_calls = message.get("tool_calls") or []
+    for raw_call in raw_tool_calls:
         call = ToolCall(
             name=raw_call.get("name", ""),
             call_id=raw_call.get("id"),
@@ -197,6 +299,16 @@ def _message_to_turn(
 
     agent = message.get("name") or (default_agent if role is Role.AGENT else None)
 
+    # A message only actually performs a handoff if *this message's own*
+    # tool calls include a transfer_to_<agent> pattern - see the module
+    # docstring's "Handoff detection" section for why the chunk-level
+    # `active_agent` state key isn't used for this instead.
+    handoff_to: str | None = None
+    if role is Role.AGENT:
+        candidate = _handoff_target_from_tool_calls(raw_tool_calls)
+        if candidate and candidate != agent:
+            handoff_to = candidate
+
     return Turn(
         step=step,
         role=role,
@@ -204,5 +316,6 @@ def _message_to_turn(
         content=message.get("content"),
         tool_calls=tool_calls,
         timestamp=timestamp,
+        handoff_to=handoff_to,
         metadata={"chunk_index": chunk_index, "node": default_agent},
     )
